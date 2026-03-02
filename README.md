@@ -1,8 +1,8 @@
 # @inta/auth
 
-inta アプリ共通の認証・セッション管理・ロール解決ライブラリ。
+Next.js + Supabase アプリ向けの認証・セッション管理・ロール解決ライブラリ。
 
-v0-equipment, v0-skills-manager, v0-inta-medal で重複していた認証コードを共通化し、各アプリからは設定を注入するだけで利用できる。
+ファクトリパターンにより、アプリ固有のロール定義やルーティング設定を注入するだけで利用できる。
 
 ## セットアップ
 
@@ -59,13 +59,13 @@ const nextConfig = {
 import type { RoleConfig, MiddlewareConfig, CallbackConfig, GuardsConfig } from "@inta/auth"
 
 export const roleConfig: RoleConfig = {
-  roleKeys: { ADMIN: "eq.admin", USER: "eq.user" },
-  roleKeyToLocal: { "eq.admin": "admin", "eq.user": "user" },
+  roleKeys: { ADMIN: "myapp.admin", USER: "myapp.user" },
+  roleKeyToLocal: { "myapp.admin": "admin", "myapp.user": "user" },
   rolePermissions: {
-    "eq.admin": ["eq.asset.read", "eq.asset.manage", /* ... */],
-    "eq.user": ["eq.asset.read"],
+    "myapp.admin": ["myapp.read", "myapp.manage", /* ... */],
+    "myapp.user": ["myapp.read"],
   },
-  permissions: { ASSET_READ: "eq.asset.read", ASSET_MANAGE: "eq.asset.manage" },
+  permissions: { READ: "myapp.read", MANAGE: "myapp.manage" },
 }
 
 export const middlewareConfig: MiddlewareConfig = {
@@ -74,24 +74,24 @@ export const middlewareConfig: MiddlewareConfig = {
   loginPath: "/login",
   noAccessPath: "/no-access",
   adminRoutePrefix: "/admin",
-  userFallbackPath: "/app/assets",
-  defaultDashboardPath: "/app/assets",
+  userFallbackPath: "/dashboard",
+  defaultDashboardPath: "/dashboard",
 }
 
 export const callbackConfig: CallbackConfig = {
   syncRole: true,
   useUpsert: false,
-  syncMemberships: true,
+  syncMemberships: false,
   loginPath: "/login",
   noAccessPath: "/no-access",
-  defaultDashboardPath: "/app/assets",
+  defaultDashboardPath: "/dashboard",
   adminDashboardPath: "/admin",
 }
 
 export const guardsConfig: GuardsConfig = {
   loginPath: "/login",
   noAccessPath: "/no-access",
-  userFallbackPath: "/app/assets",
+  userFallbackPath: "/dashboard",
 }
 ```
 
@@ -184,14 +184,14 @@ import { buildPermissionsJson } from "@inta/auth/permissions"
 
 export const GET = createPermissionsHandler(() =>
   buildPermissionsJson({
-    appKey: "equipment",
+    appKey: "my-app",
     roles: [
-      { key: "eq.admin", display_name: "管理者", permissions: ["eq.asset.read", "eq.asset.manage"] },
-      { key: "eq.user", display_name: "ユーザー", permissions: ["eq.asset.read"] },
+      { key: "myapp.admin", display_name: "管理者", permissions: ["myapp.read", "myapp.manage"] },
+      { key: "myapp.user", display_name: "ユーザー", permissions: ["myapp.read"] },
     ],
     permissions: [
-      { key: "eq.asset.read", display_name: "備品閲覧", category: "備品" },
-      { key: "eq.asset.manage", display_name: "備品管理", category: "備品" },
+      { key: "myapp.read", display_name: "閲覧", category: "データ" },
+      { key: "myapp.manage", display_name: "管理", category: "データ" },
     ],
   })
 )
@@ -249,19 +249,6 @@ export { createAdminClient } from "@inta/auth/admin"
 | `loginPath` | `string` | 未認証時のリダイレクト先 |
 | `noAccessPath` | `string` | プロフィール取得失敗・guest 時のリダイレクト先 |
 | `userFallbackPath` | `string?` | 許可されていないロールのリダイレクト先 |
-
-## 各アプリの設定差分
-
-| 設定 | equipment | skills-manager | inta-medal |
-|---|---|---|---|
-| `enableRoleCheck` | `true` | `true` | `false` |
-| `useUpsert` | `false` | `true` | - |
-| `upsertFields` | - | `true` | - |
-| `syncMemberships` | `true` | `false` | - |
-| `adminRoutePrefix` | `"/admin"` | - | - |
-| `allowedRedirectPaths` | ホワイトリスト設定 | - | - |
-| `adminDashboardPath` | `"/admin"` | - | - |
-| `defaultDashboardPath` | `"/app/assets"` | `"/"` | `"/"` |
 
 ## 環境変数
 
