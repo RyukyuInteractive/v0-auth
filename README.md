@@ -218,7 +218,7 @@ export { createAdminClient } from "@inta/auth/admin"
 
 ### リポジトリ関数
 
-profiles / memberships / tenant_cache / audit_logs への共通クエリ関数。`SupabaseClient` を引数に取るため、アプリ側で admin client を渡して使用する。
+profiles / memberships / tenant_cache / audit_logs への共通クエリ関数。`SupabaseClient` を引数に取る DI パターン。RLS バイパスが必要な操作が多いため、通常は admin client を渡す。
 
 ```typescript
 import { createAdminClient } from "@inta/auth/admin"
@@ -249,7 +249,7 @@ await insertAuditLog(admin, userId, {
   new_values: newData,
 })
 
-// 監査ログ検索
+// 監査ログ検索（limit 未指定時は Supabase デフォルトの最大1000件が返る）
 const logs = await getAuditLogs(admin, {
   table_name: "assets",
   from: "2025-01-01T00:00:00Z",

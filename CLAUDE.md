@@ -38,7 +38,7 @@ Each path in `package.json` `"exports"` maps to a single TypeScript source file 
 
 ### Repository Functions (`src/repositories.ts`)
 
-All repository functions take `SupabaseClient` as the first argument (dependency injection pattern). The caller decides whether to pass a user-scoped client or the admin client.
+All repository functions take `SupabaseClient` as the first argument (dependency injection pattern). RLS バイパスが必要な操作が多いため、通常は admin client (`createAdminClient()`) を渡す。
 
 - `getProfile(supabase, userId)` / `updateProfile(...)` / `upsertProfile(...)`
 - `getUserMemberships(supabase, userId)` — returns memberships with tenant names resolved from `tenant_cache`
