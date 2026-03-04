@@ -151,3 +151,79 @@ export interface UseKeycloakLoginReturn {
   isLoading: boolean
   error: string | null
 }
+
+// ========================================
+// Tenant Cache
+// ========================================
+
+export interface TenantInfo {
+  id: string
+  name: string
+  type: "company" | "organization"
+  slug?: string | null
+  status?: string | null
+  parentId?: string | null
+}
+
+// ========================================
+// User Memberships
+// ========================================
+
+export interface MembershipEntry {
+  id: string
+  user_id: string
+  scope_type: "company" | "organization"
+  scope_id: string
+  synced_at: string
+}
+
+export interface UserMemberships {
+  companies: { scope_id: string; name: string }[]
+  organizations: { scope_id: string; name: string }[]
+}
+
+// ========================================
+// Audit Logs
+// ========================================
+
+export interface AuditLogEntry {
+  id: string
+  user_id: string | null
+  action: string
+  table_name: string
+  record_id: string | null
+  old_values: Record<string, unknown> | null
+  new_values: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface AuditLogRecord {
+  action: string
+  table_name: string
+  record_id?: string | null
+  old_values?: Record<string, unknown> | null
+  new_values?: Record<string, unknown> | null
+}
+
+export interface AuditLogFilters {
+  user_id?: string
+  action?: string
+  table_name?: string
+  from?: string
+  to?: string
+  limit?: number
+  offset?: number
+}
+
+// ========================================
+// Tenant Sync Configuration
+// ========================================
+
+export interface TenantSyncConfig {
+  /** Account Center の URL (e.g. https://account.example.com) */
+  accountCenterUrl: string
+  /** API 認証キー */
+  apiKey: string
+  /** アプリケーションキー (e.g. "equipment") */
+  appKey: string
+}

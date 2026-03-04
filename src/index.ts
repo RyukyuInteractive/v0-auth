@@ -15,4 +15,11 @@ export type {
   PermissionsJsonInput,
   UseKeycloakLoginOptions,
   UseKeycloakLoginReturn,
+  TenantInfo,
+  MembershipEntry,
+  UserMemberships,
+  AuditLogEntry,
+  AuditLogRecord,
+  AuditLogFilters,
+  TenantSyncConfig,
 } from "./types"
