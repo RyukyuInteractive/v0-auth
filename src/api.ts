@@ -1,18 +1,10 @@
 import "server-only"
 
 import { NextResponse } from "next/server"
-import type { TenantSyncConfig } from "./types"
+import type { TenantSyncConfig, AccountCenterCompany } from "./types"
 import { createAdminClient } from "./admin"
 import { createClient } from "./server"
 import { syncTenantCache } from "./repositories"
-
-interface AccountCenterCompany {
-  id: string
-  name: string
-  slug: string
-  status: string
-  organizations: { id: string; name: string; company_id: string }[]
-}
 
 /**
  * Creates a Next.js route handler for syncing tenants from Account Center.
@@ -120,6 +112,19 @@ export function createTenantSyncHandler(config: TenantSyncConfig) {
         { error: "テナントキャッシュへの書き込みに失敗しました" },
         { status: 500 }
       )
+    }
+
+    // Call onAfterSync hook for app-specific processing
+    if (config.onAfterSync) {
+      try {
+        await config.onAfterSync({ companies, adminClient: admin })
+      } catch (err) {
+        console.error("[Tenant Sync] onAfterSync error:", err)
+        return NextResponse.json(
+          { error: "テナント同期後の追加処理に失敗しました" },
+          { status: 500 }
+        )
+      }
     }
 
     return NextResponse.json({
