@@ -226,4 +226,35 @@ export interface TenantSyncConfig {
   apiKey: string
   /** アプリケーションキー (e.g. "equipment") */
   appKey: string
+  /**
+   * tenant_cache 同期完了後に呼ばれるコールバック。
+   * Account Center API の生レスポンスと admin client を受け取り、
+   * アプリ固有の追加データ（member_count, lead_name 等）を処理できる。
+   */
+  onAfterSync?: (context: TenantSyncContext) => Promise<void>
+}
+
+export interface TenantSyncContext {
+  /** Account Center API から取得した企業一覧（organizations 含む生データ） */
+  companies: AccountCenterCompany[]
+  /** Service Role の Supabase クライアント */
+  adminClient: import("@supabase/supabase-js").SupabaseClient
+}
+
+export interface AccountCenterCompany {
+  id: string
+  name: string
+  slug: string
+  status: string
+  organizations: AccountCenterOrganization[]
+  /** API レスポンスに含まれるその他のフィールド */
+  [key: string]: unknown
+}
+
+export interface AccountCenterOrganization {
+  id: string
+  name: string
+  company_id: string
+  /** API レスポンスに含まれるその他のフィールド */
+  [key: string]: unknown
 }

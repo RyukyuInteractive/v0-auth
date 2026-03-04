@@ -22,4 +22,7 @@ export type {
   AuditLogRecord,
   AuditLogFilters,
   TenantSyncConfig,
+  TenantSyncContext,
+  AccountCenterCompany,
+  AccountCenterOrganization,
 } from "./types"

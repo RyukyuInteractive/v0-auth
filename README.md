@@ -272,6 +272,30 @@ export const POST = createTenantSyncHandler({
 })
 ```
 
+`onAfterSync` で tenant_cache 同期後にアプリ固有の追加データを処理できる。コールバック内の処理はリトライ時に再実行されるため、冪等（idempotent）に実装すること。
+
+```typescript
+export const POST = createTenantSyncHandler({
+  accountCenterUrl: process.env.ACCOUNT_CENTER_URL!,
+  apiKey: process.env.PERMISSIONS_API_KEY!,
+  appKey: process.env.APP_KEY!,
+  onAfterSync: async ({ companies, adminClient }) => {
+    // Account Center API の生レスポンスからアプリ固有のデータを処理
+    // ※ index signature により未知フィールドは unknown 型のためキャストが必要
+    for (const company of companies) {
+      await adminClient
+        .from("tenant_cache")
+        .update({
+          member_count: company.member_count as number,
+          lead_name: company.lead_name as string,
+        })
+        .eq("id", company.id)
+        .eq("type", "company")
+    }
+  },
+})
+```
+
 ### マイグレーションテンプレート
 
 `migrations/` ディレクトリに共通テーブルのテンプレート SQL を提供:
