@@ -17,18 +17,27 @@ interface UserinfoResult {
  * Fetch app_roles and memberships from the account center's userinfo endpoint.
  */
 async function fetchFromUserinfo(providerToken: string): Promise<UserinfoResult> {
-  if (!ACCOUNT_CENTER_URL) return {}
+  if (!ACCOUNT_CENTER_URL) {
+    console.warn("[Auth Callback] ACCOUNT_CENTER_URL is not set, skipping userinfo fetch")
+    return {}
+  }
 
   try {
-    const resp = await fetch(`${ACCOUNT_CENTER_URL}/protocol/openid-connect/userinfo`, {
+    const url = `${ACCOUNT_CENTER_URL}/protocol/openid-connect/userinfo`
+    console.info("[Auth Callback] Fetching userinfo from:", url)
+    const resp = await fetch(url, {
       headers: { Authorization: `Bearer ${providerToken}` },
     })
     if (resp.ok) {
       const userinfo = await resp.json()
-      return {
-        appRoles: userinfo.app_roles || undefined,
-        memberships: userinfo.memberships || undefined,
-      }
+      const appRoles = userinfo.app_roles || undefined
+      const memberships = userinfo.memberships || undefined
+      console.info("[Auth Callback] Userinfo result:", {
+        hasAppRoles: !!appRoles,
+        appRoleKeys: appRoles ? Object.keys(appRoles) : [],
+        hasMemberships: !!memberships,
+      })
+      return { appRoles, memberships }
     }
     console.error("[Auth Callback] Userinfo fetch failed:", resp.status, await resp.text())
   } catch (err) {
@@ -84,7 +93,15 @@ export function createCallbackHandler(
       const supabase = await createClient()
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
+      if (error) {
+        console.error("[Auth Callback] Code exchange failed:", error.message)
+      }
+
       if (!error && data.user) {
+        console.info("[Auth Callback] Code exchange successful for user:", data.user.id)
+        console.info("[Auth Callback] provider_token available:", !!data.session?.provider_token)
+        console.info("[Auth Callback] syncRole:", config.syncRole)
+
         // Resolve app_roles:
         // 1. Try direct userinfo call with provider_token (most reliable)
         // 2. Fall back to user_metadata.app_roles (cached by Supabase)
@@ -95,13 +112,20 @@ export function createCallbackHandler(
           const result = await fetchFromUserinfo(data.session.provider_token)
           appRoles = result.appRoles
           memberships = result.memberships
+        } else if (config.syncRole) {
+          console.warn("[Auth Callback] syncRole is enabled but provider_token is not available")
         }
 
         if (!appRoles) {
           appRoles = (data.user.user_metadata?.app_roles as AppRolesMap) || undefined
+          console.info("[Auth Callback] Falling back to user_metadata.app_roles:", {
+            hasAppRoles: !!appRoles,
+            appRoleKeys: appRoles ? Object.keys(appRoles) : [],
+          })
         }
 
         const localRole = resolveLocalRole(appRoles)
+        console.info("[Auth Callback] Resolved role:", localRole, "from appRoles:", appRoles ? Object.keys(appRoles) : "none")
 
         // Sync role to profiles using service role client (bypasses RLS)
         const adminClient = createAdminClient()
@@ -124,17 +148,24 @@ export function createCallbackHandler(
           const { error: syncError } = await adminClient.from("profiles").upsert(upsertData, { onConflict: "id" })
 
           if (syncError) {
-            console.error("[Auth Callback] Role sync error:", syncError)
+            console.error("[Auth Callback] Role upsert error:", syncError)
+          } else {
+            console.info("[Auth Callback] Profile upserted with role:", localRole)
           }
         } else {
           // update: only update existing profile
-          const { error: syncError } = await adminClient
+          const { data: updateResult, error: syncError } = await adminClient
             .from("profiles")
             .update({ role: localRole, status: "active" })
             .eq("id", data.user.id)
+            .select("id, role")
 
           if (syncError) {
-            console.error("[Auth Callback] Role sync error:", syncError)
+            console.error("[Auth Callback] Role update error:", syncError)
+          } else if (!updateResult || updateResult.length === 0) {
+            console.warn("[Auth Callback] Profile update matched 0 rows — profile may not exist for user:", data.user.id)
+          } else {
+            console.info("[Auth Callback] Profile updated:", updateResult[0])
           }
         }
 
@@ -169,6 +200,7 @@ export function createCallbackHandler(
 
         // Determine redirect URL
         let redirectUrl: string
+        console.info("[Auth Callback] Redirect decision — role:", localRole, "customRedirect:", customRedirect)
 
         if (localRole === "guest") {
           redirectUrl = `${origin}${config.noAccessPath}`
