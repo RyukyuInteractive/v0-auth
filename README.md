@@ -47,6 +47,8 @@ const nextConfig = {
 | `@inta/auth/permissions-handler` | `createPermissionsHandler` — API エンドポイント | Server |
 | `@inta/auth/guards` | `createAuthGuards` — サーバーサイド認証ガード | Server |
 | `@inta/auth/hooks` | `useKeycloakLogin` — OAuth 開始フック | Client |
+| `@inta/auth/repositories` | profiles / memberships / tenant_cache / audit_logs クエリ関数 | Server |
+| `@inta/auth/api` | `createTenantSyncHandler` — テナント同期 API | Server |
 
 ## 使い方
 
@@ -213,6 +215,75 @@ export { createClient } from "@inta/auth/server"
 // lib/supabase/admin.ts
 export { createAdminClient } from "@inta/auth/admin"
 ```
+
+### リポジトリ関数
+
+profiles / memberships / tenant_cache / audit_logs への共通クエリ関数。`SupabaseClient` を引数に取る DI パターン。RLS バイパスが必要な操作が多いため、通常は admin client を渡す。
+
+```typescript
+import { createAdminClient } from "@inta/auth/admin"
+import {
+  getProfile, updateProfile, upsertProfile,
+  getUserMemberships, syncMemberships,
+  getTenantCache, getTenantById, syncTenantCache,
+  insertAuditLog, getAuditLogs,
+} from "@inta/auth/repositories"
+
+const admin = createAdminClient()
+
+// プロフィール取得
+const profile = await getProfile(admin, userId)
+
+// テナントキャッシュ取得（companies / organizations に分類済み）
+const { companies, organizations } = await getTenantCache(admin)
+
+// 所属情報取得（テナント名つき）
+const memberships = await getUserMemberships(admin, userId)
+
+// 監査ログ挿入
+await insertAuditLog(admin, userId, {
+  action: "update",
+  table_name: "assets",
+  record_id: assetId,
+  old_values: oldData,
+  new_values: newData,
+})
+
+// 監査ログ検索（limit 未指定時は Supabase デフォルトの最大1000件が返る）
+const logs = await getAuditLogs(admin, {
+  table_name: "assets",
+  from: "2025-01-01T00:00:00Z",
+  limit: 50,
+})
+```
+
+### テナント同期 API
+
+Account Center から企業・組織情報を取得して tenant_cache テーブルに同期する共通エンドポイント。admin 権限が必要。
+
+```typescript
+// app/api/admin/tenants/sync/route.ts
+import { createTenantSyncHandler } from "@inta/auth/api"
+
+export const POST = createTenantSyncHandler({
+  accountCenterUrl: process.env.ACCOUNT_CENTER_URL!,
+  apiKey: process.env.PERMISSIONS_API_KEY!,
+  appKey: process.env.APP_KEY!,
+})
+```
+
+### マイグレーションテンプレート
+
+`migrations/` ディレクトリに共通テーブルのテンプレート SQL を提供:
+
+| ファイル | 内容 |
+|---|---|
+| `00001_profiles.sql` | profiles テーブル + ENUM型 + `handle_new_user` トリガー + `is_admin()` / `is_active_user()` ヘルパー + RLS |
+| `00002_user_memberships.sql` | user_memberships テーブル + `get_user_company_ids()` / `get_user_organization_ids()` ヘルパー + RLS |
+| `00003_tenant_cache.sql` | tenant_cache テーブル + RLS |
+| `00004_audit_logs.sql` | audit_logs テーブル + RLS |
+
+各アプリの Supabase マイグレーションに必要なテンプレートをコピーして利用する。アプリ固有のカラムが必要な場合は `ALTER TABLE` で追加すること。
 
 ## 設定リファレンス
 
