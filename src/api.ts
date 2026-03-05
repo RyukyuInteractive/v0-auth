@@ -81,6 +81,7 @@ export function createTenantSyncHandler(config: TenantSyncConfig) {
       slug?: string | null
       status?: string
       parent_id?: string | null
+      company_id?: string | null
     }[] = []
 
     for (const company of companies) {
@@ -98,7 +99,8 @@ export function createTenantSyncHandler(config: TenantSyncConfig) {
           type: "organization",
           name: org.name,
           status: "active",
-          parent_id: org.company_id,
+          parent_id: org.parent_id ?? null,
+          company_id: org.company_id,
         })
       }
     }

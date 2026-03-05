@@ -255,6 +255,7 @@ export interface AccountCenterOrganization {
   id: string
   name: string
   company_id: string
+  parent_id?: string | null
   /** API レスポンスに含まれるその他のフィールド */
   [key: string]: unknown
 }

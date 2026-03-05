@@ -204,6 +204,7 @@ export async function syncTenantCache(
     slug?: string | null
     status?: string
     parent_id?: string | null
+    company_id?: string | null
   }[]
 ) {
   await supabase.from("tenant_cache").delete().neq("id", "")
@@ -217,6 +218,7 @@ export async function syncTenantCache(
       slug: t.slug ?? null,
       status: t.status ?? "active",
       parent_id: t.parent_id ?? null,
+      company_id: t.company_id ?? null,
       synced_at: now,
     }))
 
