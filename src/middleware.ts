@@ -101,7 +101,7 @@ async function _updateSession(
   if (user) {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, has_custom_permissions")
       .eq("id", user.id)
       .single()
 
@@ -119,12 +119,13 @@ async function _updateSession(
       return NextResponse.redirect(url)
     }
 
-    // Regular user cannot access admin routes
+    // Regular user cannot access admin routes (unless has custom permissions)
     if (
       config.adminRoutePrefix &&
       config.userFallbackPath &&
       role === "user" &&
-      pathname.startsWith(config.adminRoutePrefix)
+      pathname.startsWith(config.adminRoutePrefix) &&
+      !profile?.has_custom_permissions
     ) {
       const url = request.nextUrl.clone()
       url.pathname = config.userFallbackPath
