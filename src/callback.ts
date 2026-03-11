@@ -220,6 +220,14 @@ export function createCallbackHandler(
           maxAge: 0,
         })
 
+        // Set just_logged_in cookie for post-login prompts (non-guest only)
+        if (localRole !== "guest") {
+          response.cookies.set("just_logged_in", "true", {
+            path: "/",
+            maxAge: 60,
+          })
+        }
+
         return response
       }
     }
